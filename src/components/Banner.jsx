@@ -1,57 +1,79 @@
 import React, { useState, useEffect } from "react";
-import axios from "../api";
+import instance from "./api";
 
 function Banner() {
-    const [showBanner, setShowBanner] = useState(false);
-    const [description, setDescription] = useState("");
-    const [timer, setTimer] = useState(0);
-    const [link, setLink] = useState("");
-    const [timeLeft, setTimeLeft] = useState(0);
+    const [banners, setBanners] = useState([]);
+    const [popupBanners, setPopupBanners] = useState([]);
 
     useEffect(() => {
-        const fetchBannerData = async () => {
-            const response = await axios.get("/api/banner");
-            const data = response.data;
-            setShowBanner(data.showBanner);
-            setDescription(data.description);
-            setTimer(data.timer);
-            setLink(data.link);
-            setTimeLeft(data.timer);
+        const fetchBanners = async () => {
+            try {
+                const response = await instance.get("/api/latest-banners");
+                setBanners(response.data);
+                setPopupBanners(response.data); // Set the latest 3 banners for popups
+            } catch (error) {
+                console.error("Error fetching banners:", error);
+            }
         };
 
-        fetchBannerData();
+        fetchBanners();
     }, []);
 
-    useEffect(() => {
-        if (showBanner && timer > 0) {
-            const interval = setInterval(() => {
-                setTimeLeft((prevTime) => prevTime - 1);
-            }, 1000);
+    const closePopup = (id) => {
+        setPopupBanners((prevBanners) =>
+            prevBanners.filter((banner) => banner.id !== id)
+        );
+    };
 
-            if (timeLeft <= 0) {
-                clearInterval(interval);
-                setShowBanner(false);
-            }
-
-            return () => clearInterval(interval);
-        }
-    }, [showBanner, timeLeft]);
-
-    return showBanner ? (
-        <div
-            style={{
-                padding: "10px",
-                backgroundColor: "lightblue",
-                textAlign: "center",
-            }}
-        >
-            <h1>{description}</h1>
-            <p>Time left: {Math.max(timeLeft, 0)} seconds</p>
-            <a href={link} target="_blank" rel="noopener noreferrer">
-                Learn More
-            </a>
-        </div>
-    ) : null;
+    return (
+        <>
+            {popupBanners.map((banner) => (
+                <div
+                    key={banner.id}
+                    style={{
+                        position: "absolute",
+                        top: "10px",
+                        right: `${10 + popupBanners.indexOf(banner) * 10}px`,
+                        padding: "10px",
+                        backgroundColor: "lightblue",
+                        textAlign: "center",
+                        zIndex: 1000, // Ensure popups are on top
+                        border: "1px solid black",
+                        borderRadius: "5px",
+                    }}
+                >
+                    <h1>{banner.description}</h1>
+                    <p>Time left: {Math.max(banner.timer, 0)} seconds</p>
+                    <a
+                        href={banner.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Learn More
+                    </a>
+                    <button
+                        style={{
+                            position: "absolute",
+                            top: "5px",
+                            right: "5px",
+                            border: "none",
+                            backgroundColor: "red",
+                            color: "white",
+                            cursor: "pointer",
+                            borderRadius: "50%",
+                            width: "20px",
+                            height: "20px",
+                            textAlign: "center",
+                            lineHeight: "20px",
+                        }}
+                        onClick={() => closePopup(banner.id)}
+                    >
+                        X
+                    </button>
+                </div>
+            ))}
+        </>
+    );
 }
 
 export default Banner;
