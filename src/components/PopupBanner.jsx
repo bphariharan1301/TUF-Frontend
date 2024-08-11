@@ -1,40 +1,39 @@
 // src/components/PopupBanners.js
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import instance from "../api"; // Adjusted import path
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    IconButton,
+    Typography,
+    Button,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
-function PopupBanners() {
-    const [banners, setBanners] = useState([]);
+function PopupBanners({ banners, onClose }) {
+    const [currentBanners, setCurrentBanners] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
-    const [intervalId, setIntervalId] = useState(null);
-    const navigate = useNavigate();
+    const [dialogOpen, setDialogOpen] = useState(true);
 
     useEffect(() => {
-        const fetchBanners = async () => {
-            try {
-                const response = await instance.get("/api/banner");
-                const data = response.data.filter((banner) => banner.visible);
-                setBanners(data.slice(-3)); // Get the last 3 banners
-                setCurrentIndex(0);
-            } catch (error) {
-                console.error("Error fetching banners:", error);
-            }
-        };
-
-        fetchBanners();
-    }, []);
-
-    useEffect(() => {
-        if (banners.length === 0 || currentIndex >= banners.length) return;
-
-        const banner = banners[currentIndex];
-        setTimeLeft(banner.timer);
-
-        // Clear previous interval if it exists
-        if (intervalId) {
-            clearInterval(intervalId);
+        if (banners.length > 0) {
+            const lastThreeBanners = banners.slice(-3); // Take the last 3 banners
+            setCurrentBanners(lastThreeBanners);
+            setCurrentIndex(0);
+            setDialogOpen(true); // Ensure dialog is open
         }
+    }, [banners]);
+
+    useEffect(() => {
+        if (
+            currentBanners.length === 0 ||
+            currentIndex >= currentBanners.length
+        )
+            return;
+
+        const banner = currentBanners[currentIndex];
+        setTimeLeft(banner.timer);
 
         const id = setInterval(() => {
             setTimeLeft((prevTime) => {
@@ -47,16 +46,15 @@ function PopupBanners() {
             });
         }, 1000);
 
-        setIntervalId(id);
-
         return () => clearInterval(id);
-    }, [currentIndex, banners]);
+    }, [currentIndex, currentBanners]);
 
     const handleNextBanner = () => {
         setCurrentIndex((prevIndex) => {
-            if (prevIndex + 1 >= banners.length) {
-                // Close popups if at the end
-                navigate("/");
+            if (prevIndex + 1 >= currentBanners.length) {
+                // Close dialog if at the end
+                setDialogOpen(false);
+                onClose(); // Notify parent to reset or hide the component
                 return prevIndex; // Stay at the last index
             }
             return prevIndex + 1;
@@ -67,66 +65,55 @@ function PopupBanners() {
         handleNextBanner();
     };
 
-    if (banners.length === 0) return null;
+    if (!dialogOpen || currentBanners.length === 0) return null;
+
+    const currentBanner = currentBanners[currentIndex];
 
     return (
-        <div
-            style={{
-                position: "fixed",
-                top: "0",
-                left: "0",
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                zIndex: 9999,
-                overflow: "hidden",
+        <Dialog
+            open={dialogOpen}
+            onClose={handleClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                style: {
+                    position: "relative",
+                    padding: "20px",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                },
             }}
         >
-            {banners.map(
-                (banner, index) =>
-                    index === currentIndex && (
-                        <div
-                            key={banner.id}
-                            style={{
-                                position: "absolute",
-                                width: "80%",
-                                maxWidth: "500px",
-                                backgroundColor: "white",
-                                padding: "20px",
-                                borderRadius: "8px",
-                                boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-                            }}
-                        >
-                            <button
-                                onClick={handleClose}
-                                style={{
-                                    position: "absolute",
-                                    top: "10px",
-                                    right: "10px",
-                                    background: "none",
-                                    border: "none",
-                                    fontSize: "20px",
-                                    cursor: "pointer",
-                                }}
-                            >
-                                ✖
-                            </button>
-                            <h3>{banner.description}</h3>
-                            <p>Time Left: {timeLeft} seconds</p>
-                            <a
-                                href={banner.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Learn More
-                            </a>
-                        </div>
-                    )
-            )}
-        </div>
+            <IconButton
+                onClick={handleClose}
+                style={{
+                    position: "absolute",
+                    top: "10px",
+                    right: "10px",
+                }}
+            >
+                <CloseIcon />
+            </IconButton>
+            <DialogTitle>
+                <Typography variant="h6">
+                    {currentBanner.description}
+                </Typography>
+            </DialogTitle>
+            <DialogContent>
+                <Typography variant="body1">
+                    Time Left: {timeLeft} seconds
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    href={currentBanner.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ marginTop: "10px" }}
+                >
+                    Learn More
+                </Button>
+            </DialogContent>
+        </Dialog>
     );
 }
 
